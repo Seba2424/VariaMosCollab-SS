@@ -13,20 +13,36 @@ import "./DashBoard.css";
 interface Props {
   loginEnabled?: boolean;
 }
-interface State { }
+interface State {
+  projectData: any;
+}
 
 class DashBoard extends Component<Props, State> {
-  state = {};
+  state: State = {
+    projectData: {}
+  };
+
   projectService: ProjectService = new ProjectService();
 
   constructor(props: Props) {
     super(props);
   }
 
-  componentDidMount() { 
-    let project=this.projectService.createProject("My project");
-    if (project.productLines.length==0) {
-      this.projectService.createLPS(project, "My product line",  "System", "Retail");
+  componentDidMount() {
+    // Conectar a socket.io y establecer los manejadores de eventos
+    this.projectService.socket.on('initialData', (data: any) => {
+      this.setState({ projectData: data });
+    });
+
+    this.projectService.socket.on('update', (data: any) => {
+      this.setState(prevState => ({
+        projectData: this.projectService.deepMerge(prevState.projectData, data)
+      }));
+    });
+
+    let project = this.projectService.createProject("My project");
+    if (project.productLines.length === 0) {
+      this.projectService.createLPS(project, "My product line", "System", "Retail");
     }
     this.projectService.updateProject(project, null);
   }
@@ -46,14 +62,14 @@ class DashBoard extends Component<Props, State> {
         <table>
           <tbody>
             <tr>
-              <td className="tdTreeExplorer"> 
+              <td className="tdTreeExplorer">
                 <TreeExplorer projectService={this.projectService} />
               </td>
               <td className="tdDiagramEditor">
                 <DiagramEditor projectService={this.projectService} />
               </td>
               <td className="tdElements">
-                <ElementsPannel projectService={this.projectService} /> 
+                <ElementsPannel projectService={this.projectService} />
               </td>
             </tr>
           </tbody>

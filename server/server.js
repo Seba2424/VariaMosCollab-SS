@@ -1,48 +1,70 @@
 const express = require('express');
 const http = require('http');
 const socketIo = require('socket.io');
-const cors = require('cors');
+const bodyParser = require('body-parser');
+const cors = require('cors');  // Añadir esta línea
 
 const app = express();
-app.use(cors());
-
 const server = http.createServer(app);
 const io = socketIo(server, {
   cors: {
-    origin: "http://localhost:3000",
+    origin: "http://localhost:3000",  // Reemplaza con el origen de tu aplicación
     methods: ["GET", "POST"]
   }
 });
 
+app.use(cors());  // Añadir esta línea para usar CORS con Express
+app.use(bodyParser.json());
+
+let jsonData = {};  // Almacena temporalmente el archivo .json
+
 io.on('connection', (socket) => {
-  console.log('New client connected');
+  socket.emit('initialData', jsonData);  // Envía el archivo .json inicial al nuevo cliente
 
-  socket.on('projectCreated', (project) => {
-    console.log('Project Created:', project);
-    socket.join(project.id); // Join the room with project ID
-    io.to(project.id).emit('projectCreated', project);
-  });
+  socket.on('update', (data) => {
+    jsonData = deepMerge(jsonData, data);  // Actualiza el archivo .json en el servidor fusionando los datos
 
-  socket.on('joinProject', (projectId) => {
-    socket.join(projectId);
-    console.log(`Joining project with ID: ${projectId}`);
-    io.to(projectId).emit('joinProject', projectId);
-  });
-
-  socket.on('leaveProject', (projectId) => {
-    socket.leave(projectId);
-    console.log(`Leaving project with ID: ${projectId}`);
-  });
-
-  socket.on('updateProject', (updatedProject) => {
-    console.log('Updating project:', updatedProject);
-    io.to(updatedProject.id).emit('updateProject', updatedProject);
+    console.log('JSON actualizado: ', JSON.stringify(jsonData, null, 2));
+    socket.broadcast.emit('update', jsonData);  // Envía actualizaciones a otros clientes
   });
 
   socket.on('disconnect', () => {
-    console.log('Client disconnected');
+    console.log('Cliente desconectado');
   });
 });
 
-const PORT = process.env.PORT || 4000;
-server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+app.post('/save', (req, res) => {
+  // Endpoint para guardar el archivo .json en la base de datos o sistema de archivos
+  jsonData = deepMerge(jsonData, req.body);
+  console.log('JSON guardado: ', JSON.stringify(jsonData, null, 2));  // Añadir esta línea para registrar los cambios
+  res.status(200).send('JSON data saved successfully');
+});
+
+const PORT = 3001;
+server.listen(PORT, '0.0.0.0', () => {
+  console.log('Server is listening on port 3001');
+});
+
+// Función para fusionar profundamente dos objetos y arrays
+function deepMerge(target, source) {
+  const isObject = (obj) => obj && typeof obj === 'object';
+
+  if (!isObject(target) || !isObject(source)) {
+    return source;
+  }
+
+  Object.keys(source).forEach(key => {
+    const targetValue = target[key];
+    const sourceValue = source[key];
+
+    if (Array.isArray(targetValue) && Array.isArray(sourceValue)) {
+      target[key] = [...targetValue, ...sourceValue];  // Fusiona arrays en lugar de reemplazar
+    } else if (isObject(targetValue) && isObject(sourceValue)) {
+      target[key] = deepMerge(targetValue, sourceValue);
+    } else {
+      target[key] = sourceValue;
+    }
+  });
+
+  return target;
+}

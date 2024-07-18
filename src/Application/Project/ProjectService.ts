@@ -35,6 +35,8 @@ import * as alertify from "alertifyjs";
 import { Buffer } from "buffer";
 import { ConfigurationInformation } from "../../Domain/ProductLineEngineering/Entities/ConfigurationInformation";
 
+import io, { Socket } from 'socket.io-client';
+
 export default class ProjectService {
   private graph: any;
   private projectManager: ProjectManager = new ProjectManager();
@@ -77,14 +79,59 @@ export default class ProjectService {
   private updatedElementListeners: any = [];
   private createdElementListeners: any = [];
 
-  // constructor() {
-  //   let me = this;
-  //   let fun = function (data: any) {
-  //     me._languages = data;
-  //   };
 
-  //   this.languageService.getLanguages(fun);
-  // }
+  public socket: Socket;
+  private jsonData: any;
+
+  
+  constructor() {
+    this.socket = io('http://localhost:3001');
+    this.jsonData = {};
+
+    this.socket.on('initialData', (data: any) => {
+      this.jsonData = data;
+      this.updateLocalData();
+    });
+
+    this.socket.on('update', (data: any) => {
+      this.jsonData = this.deepMerge(this.jsonData, data);
+      this.updateLocalData();
+    });
+  }
+
+  public updateJsonData(newData: any) {
+    this.jsonData = this.deepMerge(this.jsonData, newData);
+    this.socket.emit('update', newData);
+  }
+
+  private updateLocalData() {
+    // Lógica para actualizar el espacio de trabajo con los datos locales
+    console.log('Local data updated', this.jsonData);
+  }
+
+  public deepMerge(target: any, source: any) {
+    // Función para fusionar profundamente dos objetos y arrays
+    const isObject = (obj: any) => obj && typeof obj === 'object';
+
+    if (!isObject(target) || !isObject(source)) {
+      return source;
+    }
+
+    Object.keys(source).forEach(key => {
+      const targetValue = target[key];
+      const sourceValue = source[key];
+
+      if (Array.isArray(targetValue) && Array.isArray(sourceValue)) {
+        target[key] = [...targetValue, ...sourceValue];  // Fusiona arrays en lugar de reemplazar
+      } else if (isObject(targetValue) && isObject(sourceValue)) {
+        target[key] = this.deepMerge(targetValue, sourceValue);
+      } else {
+        target[key] = sourceValue;
+      }
+    });
+
+    return target;
+  }
 
   public get currentLanguage(): Language {
     return this._currentLanguage;

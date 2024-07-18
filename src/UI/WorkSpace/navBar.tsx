@@ -1,15 +1,12 @@
 import React, { Component } from "react";
-
 import ProjectService from "../../Application/Project/ProjectService";
 import { getUserProfile, logoutUser } from "../SignUp/SignUp.utils";
 import SaveDialog from "../SaveDialog/saveDialog";
 import OpenDialog from "../OpenDialog/openDialog";
 import NewDialog from "../NewDialog/newDialog";
-
-//Dependencies for the query modal
+import InviteUserModal from "../InviteUserModal/InviteUserModal";
 import QueryModal from "../Queries/queryModal";
 import "./NavBar.css";
-
 interface Props {
   projectService: ProjectService;
 }
@@ -19,9 +16,11 @@ interface State {
   show_save_modal: boolean;
   show_open_modal: boolean;
   show_new_modal: boolean;
+  show_invite_modal: boolean;
+  isLoggedIn: boolean;
 }
 
-class navBar extends Component<Props, State> {
+class NavBar extends Component<Props, State> {
   constructor(props: any) {
     super(props);
     this.state = {
@@ -30,62 +29,63 @@ class navBar extends Component<Props, State> {
       show_save_modal: false,
       show_open_modal: false,
       show_new_modal: false,
-    }
+      show_invite_modal: false,
+      isLoggedIn: false,
+    };
 
     this.exportProject = this.exportProject.bind(this);
     this.refreshNavBar = this.refreshNavBar.bind(this);
 
-    //modal functions binding
+    // Modal functions binding
     this.handleShowQueryModal = this.handleShowQueryModal.bind(this);
     this.handleCloseQueryModal = this.handleCloseQueryModal.bind(this);
+    this.handleShowInviteModal = this.handleShowInviteModal.bind(this);
+    this.handleCloseInviteModal = this.handleCloseInviteModal.bind(this);
+    this.handleInviteUser = this.handleInviteUser.bind(this);
   }
 
   componentDidMount() {
     const userProfile = getUserProfile();
 
     if (userProfile) {
-      this.setState({ firstName: userProfile.givenName })
+      this.setState({
+        firstName: userProfile.givenName,
+        isLoggedIn: true,
+      });
     }
   }
 
   saveProject() {
-    let me = this;
     if (this.props.projectService.isGuessUser()) {
-      this.exportProject(); 
-    }else{
-      let pf=this.props.projectService.getProjectInformation();
+      this.exportProject();
+    } else {
+      let pf = this.props.projectService.getProjectInformation();
       if (!pf) {
         this.handleShowSaveModal();
-      }else if (!pf.id) {
+      } else if (!pf.id) {
         this.handleShowSaveModal();
-      }else{
+      } else {
         this.props.projectService.saveProjectInServer(pf, null, null);
       }
-    } 
+    }
   }
 
   saveProjectAs() {
-    let me = this;
     if (this.props.projectService.isGuessUser()) {
-      this.exportProject(); 
-    }else{
+      this.exportProject();
+    } else {
       this.handleShowSaveModal();
-    } 
+    }
   }
 
   newProject() {
-    let me = this;
-    let userId = this.props.projectService.getUser();
     this.handleShowNewModal();
   }
 
   openProject() {
-    let me = this;
-    let userId = this.props.projectService.getUser();
     this.handleShowOpenModal();
   }
 
-  //Modal functions
   handleShowSaveModal() {
     this.setState({ show_save_modal: true });
   }
@@ -110,6 +110,19 @@ class navBar extends Component<Props, State> {
     this.setState({ show_new_modal: false });
   }
 
+  handleShowInviteModal() {
+    this.setState({ show_invite_modal: true });
+  }
+
+  handleCloseInviteModal() {
+    this.setState({ show_invite_modal: false });
+  }
+
+  handleInviteUser(userName: string) {
+    alert(`Invitación enviada a ${userName}`);
+    this.handleCloseInviteModal();
+  }
+
   exportProject() {
     this.props.projectService.exportProject();
   }
@@ -122,7 +135,6 @@ class navBar extends Component<Props, State> {
     logoutUser();
   }
 
-  //Modal functions
   handleShowQueryModal() {
     this.setState({ show_query_modal: true });
   }
@@ -135,15 +147,15 @@ class navBar extends Component<Props, State> {
     return (
       <div className="NavBar">
         <div className="header">
-          <a title="New project" onClick={this.newProject.bind(this)}><span><img src="/images/menuIcons/new.png"></img></span></a>{" "}
-          <a title="Open project" onClick={this.openProject.bind(this)}><span><img src="/images/menuIcons/open.png"></img></span></a>{" "}
-          <a title="Save project" onClick={this.saveProject.bind(this)}><span><img src="/images/menuIcons/save.png"></img></span></a>{" "}
-          <a title="Save project as ..." onClick={this.saveProjectAs.bind(this)}><span><img src="/images/menuIcons/saveas.png"></img></span></a>{" "}
-          <a title="Download project" onClick={this.exportProject.bind(this)}><span><img src="/images/menuIcons/download.png"></img></span></a>{" "}
-          <a title="Queries" onClick={() => this.handleShowQueryModal()}><span><img src="/images/menuIcons/queries.png"></img></span></a>{" "}
+          <a title="New project" onClick={this.newProject.bind(this)}><span><img src="/images/menuIcons/new.png" alt="New project"></img></span></a>{" "}
+          <a title="Open project" onClick={this.openProject.bind(this)}><span><img src="/images/menuIcons/open.png" alt="Open project"></img></span></a>{" "}
+          <a title="Save project" onClick={this.saveProject.bind(this)}><span><img src="/images/menuIcons/save.png" alt="Save project"></img></span></a>{" "}
+          <a title="Save project as ..." onClick={this.saveProjectAs.bind(this)}><span><img src="/images/menuIcons/saveas.png" alt="Save project as"></img></span></a>{" "}
+          <a title="Download project" onClick={this.exportProject.bind(this)}><span><img src="/images/menuIcons/download.png" alt="Download project"></img></span></a>{" "}
+          <a title="Queries" onClick={() => this.handleShowQueryModal()}><span><img src="/images/menuIcons/queries.png" alt="Queries"></img></span></a>{" "}
           <a title="Settings" onClick={() =>
             document.getElementById("projectManagement").click()
-          }><span><img src="/images/menuIcons/settings.png"></img></span></a>{" "}
+          }><span><img src="/images/menuIcons/settings.png" alt="Settings"></img></span></a>{" "}
           <button
             type="button"
             data-bs-toggle="modal"
@@ -153,6 +165,9 @@ class navBar extends Component<Props, State> {
             hidden={true}
           >
             Project Management
+          </button>
+          <button onClick={this.handleShowInviteModal}>
+            Invitar a usuarios
           </button>
         </div>
         <div>
@@ -179,9 +194,14 @@ class navBar extends Component<Props, State> {
             <NewDialog show={this.state.show_new_modal} handleCloseCallback={this.handleCloseNewModal.bind(this)} projectService={this.props.projectService} />
           )}
         </div>
+        <InviteUserModal
+          show={this.state.show_invite_modal}
+          handleClose={this.handleCloseInviteModal}
+          handleInvite={this.handleInviteUser}
+        />
       </div>
     );
   }
 }
 
-export default navBar;
+export default NavBar;
