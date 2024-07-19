@@ -31,6 +31,7 @@ interface State {
   showPropertiesModal: boolean;
   selectedObject: any;
 }
+let recursionGuard = false;
 
 export default class MxGEditor extends Component<Props, State> {
   //state = {};
@@ -97,32 +98,36 @@ export default class MxGEditor extends Component<Props, State> {
         // this.refreshEdgeStyle(edge);
       }
     } 
+    this.props.projectService.updateJsonData(e);
   }
-
+  
   projectService_addUpdatedElementListener(e: any) {
     try {
-      let vertice = MxgraphUtils.findVerticeById(this.graph, e.element.id, null);
-      if (vertice) {
-        this.refreshVertexLabel(vertice);
-        this.createOverlays(e.element, vertice);
-      } else {
-        let edge = MxgraphUtils.findEdgeById(this.graph, e.element.id, null);
-        if (edge) {
-          this.refreshEdgeLabel(edge);
-          this.refreshEdgeStyle(edge);
+        let vertice = MxgraphUtils.findVerticeById(this.graph, e.element.id, null);
+        if (vertice) {
+            this.refreshVertexLabel(vertice);
+            this.createOverlays(e.element, vertice);
+        } else {
+            let edge = MxgraphUtils.findEdgeById(this.graph, e.element.id, null);
+            if (edge) {
+                this.refreshEdgeLabel(edge);
+                this.refreshEdgeStyle(edge);
+            }
         }
-      }
-      this.graph.refresh();
-    } catch (error) {
-      let m=error;
-    }
-  }
+        this.graph.refresh();
 
+        // Emitir evento de actualización con el elemento actualizado
+        this.props.projectService.updateJsonData({ element: e.element });
+    } catch (error) {
+        console.error("Error in projectService_addUpdatedElementListener:", error);
+    }
+}
   projectService_addUpdateProjectListener(e: any) {
     let me = this;
     let model = me.props.projectService.findModelById(e.project, e.modelSelectedId);
     me.loadModel(model);
     me.forceUpdate();
+    this.props.projectService.updateJsonData(e);
   }
 
   componentDidMount() {
@@ -166,7 +171,7 @@ export default class MxGEditor extends Component<Props, State> {
     graph.setGridEnabled(true);
     graph.setAllowDanglingEdges(false);
 
-    // Allows dropping cells into new lanes and
+    // Allows dropping cells into new lanes and 
     // lanes into new pools, but disallows dropping
     // cells on edges to split edges
     graph.setDropEnabled(true);
@@ -223,6 +228,7 @@ export default class MxGEditor extends Component<Props, State> {
             }
           }
         }
+        me.props.projectService.updateJsonData(me.currentModel);
       }
     });
 
@@ -253,6 +259,7 @@ export default class MxGEditor extends Component<Props, State> {
               }
             }
           }
+          me.props.projectService.updateJsonData(me.currentModel);
         }
       } catch (error) {
         me.processException(error);
@@ -278,6 +285,7 @@ export default class MxGEditor extends Component<Props, State> {
               element.height = cell.geometry.height;
             }
           }
+          me.props.projectService.updateJsonData(me.currentModel);
         }
       }
     });
@@ -420,6 +428,7 @@ export default class MxGEditor extends Component<Props, State> {
         }
         me.refreshEdgeLabel(edge);
         me.refreshEdgeStyle(edge);
+        me.props.projectService.updateJsonData(me.currentModel);
       } catch (error) {
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         let m = error;
@@ -437,6 +446,22 @@ export default class MxGEditor extends Component<Props, State> {
     graph.addListener(mx.mxEvent.REMOVE_CELLS, function (sender, evt) {
       try {
         evt.consume();
+        if (evt.properties.cells) {
+          for (let i = 0; i < evt.properties.cells.length; i++) {
+            const cell = evt.properties.cells[i];
+            if (cell.value) {
+              let uid = cell.value.getAttribute("uid");
+              if (uid) {
+                if (cell.edge) {
+                  me.props.projectService.removeModelRelationshipById(me.currentModel, uid);
+                } else {
+                  me.props.projectService.removeModelElementById(me.currentModel, uid);
+                }
+              }
+            }
+          }
+          me.props.projectService.updateJsonData(me.currentModel); // Enviar actualización al servidor
+        }
       } catch (error) {
         alert(error);
       }
@@ -469,6 +494,7 @@ export default class MxGEditor extends Component<Props, State> {
             );
           }
         }
+        me.props.projectService.updateJsonData(me.currentModel);
       }
     });
 
@@ -481,6 +507,7 @@ export default class MxGEditor extends Component<Props, State> {
             // DO SOMETHING
           }
         }
+        me.props.projectService.updateJsonData(me.currentModel);
       } catch (error) {
         alert(error);
       }
@@ -527,6 +554,7 @@ export default class MxGEditor extends Component<Props, State> {
         }
       }
       graph.removeCells(cells, true);
+      me.props.projectService.updateJsonData(me.currentModel);
     }
     //MxgraphUtils.deleteSelection(this.graph, this.currentModel);
   }
@@ -639,6 +667,7 @@ export default class MxGEditor extends Component<Props, State> {
         }
       }
     }
+    me.props.projectService.updateJsonData(me.currentModel);
   }
 
   refreshEdgeLabel(edge: any) {
@@ -672,6 +701,7 @@ export default class MxGEditor extends Component<Props, State> {
     } else {
       edge.value.setAttribute("label", "");
     }
+    me.props.projectService.updateJsonData(me.currentModel);
   }
 
   refreshVertexLabel(vertice: any) {
@@ -716,7 +746,7 @@ export default class MxGEditor extends Component<Props, State> {
     } else {
       vertice.value.setAttribute("label", "");
     }
-
+    me.props.projectService.updateJsonData(me.currentModel); 
 
   }
 
@@ -758,6 +788,7 @@ export default class MxGEditor extends Component<Props, State> {
           }
         }
       }
+      me.props.projectService.updateJsonData(me.currentModel);
     } catch (error) {
       me.processException(error);
     }
@@ -864,6 +895,7 @@ export default class MxGEditor extends Component<Props, State> {
               }
             }
           }
+          me.props.projectService.updateJsonData(me.currentModel);
         }
       } finally {
         this.graph?.getModel().endUpdate();
@@ -878,6 +910,7 @@ export default class MxGEditor extends Component<Props, State> {
     this.graph.removeCellOverlays(cell);
     this.createSelectionOverlay(element, cell);
     this.createCustomOverlays(element, cell);
+    this.props.projectService.updateJsonData(this.currentModel); 
   }
 
   createSelectionOverlay(element: any, cell: any) {
@@ -909,6 +942,7 @@ export default class MxGEditor extends Component<Props, State> {
               }
             }
             me.createOverlays(element, parentCell);
+            me.props.projectService.updateJsonData(me.currentModel);
           } catch (error) { }
         });
 
@@ -950,6 +984,7 @@ export default class MxGEditor extends Component<Props, State> {
             let overlayDef = overs[key];
             this.createCustomOverlay(cell, overlayDef.icon, overlayDef.align, overlayDef.width, overlayDef.height, overlayDef.offset_x, overlayDef.offset_y);
           }
+          me.props.projectService.updateJsonData(me.currentModel);
         }
       }
     }
@@ -1022,6 +1057,7 @@ export default class MxGEditor extends Component<Props, State> {
     overlayFrame.offset = new mx.mxPoint(offx, offy);
     this.graph.addCellOverlay(cell, overlayFrame);
     this.graph.refresh();
+    this.props.projectService.updateJsonData(this.currentModel);
   }
 
   DecodeImage(imageBase64: any) {
@@ -1148,6 +1184,7 @@ export default class MxGEditor extends Component<Props, State> {
       // TODO: Everything we are doing with respect to
       // the model management is an anti pattern
       this.currentModel.constraints = this.state.currentModelConstraints;
+      this.props.projectService.updateJsonData(this.currentModel); 
     }
     //this.hideConstraintModal();
   }

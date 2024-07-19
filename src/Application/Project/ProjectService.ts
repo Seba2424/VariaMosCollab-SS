@@ -85,8 +85,11 @@ export default class ProjectService {
 
   
   constructor() {
-    this.socket = io('http://localhost:3001');
+    this.socket = io("http://localhost:3001");
     this.jsonData = {};
+    this.socket.on('connect', () => {
+      console.log('Conectado al servidor de socket.io');
+    });
 
     this.socket.on('initialData', (data: any) => {
       this.jsonData = data;
@@ -100,17 +103,43 @@ export default class ProjectService {
   }
 
   public updateJsonData(newData: any) {
-    this.jsonData = this.deepMerge(this.jsonData, newData);
-    this.socket.emit('update', newData);
-  }
+    try {
+        console.log("Updating JSON data", newData);
 
+        if (newData && typeof newData === 'object') {
+            if (newData.model) {
+                this.jsonData = this.deepMerge(this.jsonData, newData.model);
+            } else if (newData.element) {
+                this.jsonData.elements = this.updateElement(this.jsonData.elements, newData.element);
+            } else if (newData.relationship) {
+                this.jsonData.relationships = this.updateElement(this.jsonData.relationships, newData.relationship);
+            }
+            this.socket.emit('update', this.jsonData);
+        } else {
+            console.error("Invalid data received for JSON update:", newData);
+        }
+    } catch (error) {
+        console.error("Error updating JSON data:", error);
+    }
+}
+
+private updateElement(elements: any[], newElement: any) {
+    const index = elements.findIndex(element => element.id === newElement.id);
+    if (index !== -1) {
+        // Si el elemento existe, actualízalo
+        elements[index] = newElement;
+    } else {
+        // Si el elemento no existe, agrégalo
+        elements.push(newElement);
+    }
+    return elements;
+}
   private updateLocalData() {
     // Lógica para actualizar el espacio de trabajo con los datos locales
     console.log('Local data updated', this.jsonData);
   }
 
-  public deepMerge(target: any, source: any) {
-    // Función para fusionar profundamente dos objetos y arrays
+  private deepMerge(target: any, source: any) {
     const isObject = (obj: any) => obj && typeof obj === 'object';
 
     if (!isObject(target) || !isObject(source)) {

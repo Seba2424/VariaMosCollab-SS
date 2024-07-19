@@ -2,29 +2,29 @@ const express = require('express');
 const http = require('http');
 const socketIo = require('socket.io');
 const bodyParser = require('body-parser');
-const cors = require('cors');  // Añadir esta línea
+const cors = require('cors');
 
 const app = express();
 const server = http.createServer(app);
 const io = socketIo(server, {
   cors: {
-    origin: "http://localhost:3000",  // Reemplaza con el origen de tu aplicación
+    origin: "http://localhost:3000",
     methods: ["GET", "POST"]
   }
 });
 
-app.use(cors());  // Añadir esta línea para usar CORS con Express
+app.use(cors());
 app.use(bodyParser.json());
 
 let jsonData = {};  // Almacena temporalmente el archivo .json
 
 io.on('connection', (socket) => {
+  console.log('Nuevo cliente conectado');  // Registro de nueva conexión
   socket.emit('initialData', jsonData);  // Envía el archivo .json inicial al nuevo cliente
 
   socket.on('update', (data) => {
     jsonData = deepMerge(jsonData, data);  // Actualiza el archivo .json en el servidor fusionando los datos
-
-    console.log('JSON actualizado: ', JSON.stringify(jsonData, null, 2));
+    console.log('JSON actualizado: ', JSON.stringify(jsonData, null, 2));  // Añadir esta línea para registrar los cambios
     socket.broadcast.emit('update', jsonData);  // Envía actualizaciones a otros clientes
   });
 

@@ -36,7 +36,7 @@ class DashBoard extends Component<Props, State> {
 
     this.projectService.socket.on('update', (data: any) => {
       this.setState(prevState => ({
-        projectData: this.projectService.deepMerge(prevState.projectData, data)
+        projectData: { ...prevState.projectData, ...data } // Utiliza spread operator para actualizar el estado
       }));
     });
 
@@ -45,6 +45,11 @@ class DashBoard extends Component<Props, State> {
       this.projectService.createLPS(project, "My product line", "System", "Retail");
     }
     this.projectService.updateProject(project, null);
+  }
+
+  // Método para enviar actualizaciones al servidor
+  updateProjectData(updatedData: any) {
+    this.projectService.updateJsonData(updatedData);
   }
 
   render() {
@@ -58,7 +63,6 @@ class DashBoard extends Component<Props, State> {
     return (
       <Layout>
         <ProjectManagement projectService={this.projectService} />
-        {/* <NavBar projectService={this.projectService} /> */}
         <table>
           <tbody>
             <tr>
