@@ -78,31 +78,38 @@ export default class MxGEditor extends Component<Props, State> {
   }
 
   projectService_addCreatedElementListener(e: any) {
-    let me=this;
+    let me = this;
     let vertice = MxgraphUtils.findVerticeById(this.graph, e.element.id, null);
     if (vertice) {
-      me.setState({
-        selectedObject:e.element 
-      })
-      let fun=function(){
         me.setState({
-          selectedObject:e.element,
-          showPropertiesModal:true
-        })
-      }
-      setTimeout(fun, 500);
+            selectedObject: e.element
+        });
+        let fun = function () {
+            me.setState({
+                selectedObject: e.element,
+                showPropertiesModal: true
+            });
+        };
+        setTimeout(fun, 500);
     } else {
-      let edge = MxgraphUtils.findEdgeById(this.graph, e.element.id, null);
-      if (edge) {
-        // this.refreshEdgeLabel(edge);
-        // this.refreshEdgeStyle(edge);
-      }
-    } 
-    this.props.projectService.updateJsonData(e);
-  }
-  
-  projectService_addUpdatedElementListener(e: any) {
+        let edge = MxgraphUtils.findEdgeById(this.graph, e.element.id, null);
+        if (edge) {
+            this.refreshEdgeLabel(edge);
+            this.refreshEdgeStyle(edge);
+        }
+    }
+
     try {
+        console.log("Actualizando JSON con el nuevo elemento");
+        this.props.projectService.updateJsonData({ element: e.element });
+    } catch (error) {
+        console.error("Error al actualizar el JSON:", error);
+    }
+}
+
+projectService_addUpdatedElementListener(e: any) {
+    try {
+        console.log("Elemento actualizado recibido:", e.element);
         let vertice = MxgraphUtils.findVerticeById(this.graph, e.element.id, null);
         if (vertice) {
             this.refreshVertexLabel(vertice);
@@ -115,20 +122,24 @@ export default class MxGEditor extends Component<Props, State> {
             }
         }
         this.graph.refresh();
-
-        // Emitir evento de actualización con el elemento actualizado
         this.props.projectService.updateJsonData({ element: e.element });
     } catch (error) {
-        console.error("Error in projectService_addUpdatedElementListener:", error);
+        console.error("Error en projectService_addUpdatedElementListener:", error);
     }
 }
-  projectService_addUpdateProjectListener(e: any) {
+
+projectService_addUpdateProjectListener(e: any) {
     let me = this;
     let model = me.props.projectService.findModelById(e.project, e.modelSelectedId);
     me.loadModel(model);
     me.forceUpdate();
-    this.props.projectService.updateJsonData(e);
-  }
+    try {
+        console.log("Actualizando JSON con el proyecto actualizado");
+        this.props.projectService.updateJsonData(e);
+    } catch (error) {
+        console.error("Error al actualizar el JSON:", error);
+    }
+}
 
   componentDidMount() {
     let me = this;
@@ -234,37 +245,38 @@ export default class MxGEditor extends Component<Props, State> {
 
     graph.addListener(mx.mxEvent.CELLS_ADDED, function (sender, evt) {
       try {
-        //evt.consume(); 
-        if (evt.properties.cells) {
-          let parentId = null;
-          if (evt.properties.parent) {
-            if (evt.properties.parent.value) {
-              parentId = evt.properties.parent.value.getAttribute("uid");
-            }
-          }
-          for (let i = 0; i < evt.properties.cells.length; i++) {
-            const cell = evt.properties.cells[i];
-            if (!cell.value.attributes) {
-              return;
-            }
-            let uid = cell.value.getAttribute("uid");
-            if (uid) {
-              let element = me.props.projectService.findModelElementById(me.currentModel, uid);
-              if (element) {
-                element.parentId = parentId;
-                element.x = cell.geometry.x;
-                element.y = cell.geometry.y;
-                element.width = cell.geometry.width;
-                element.height = cell.geometry.height;
+          if (evt.properties.cells) {
+              let parentId = null;
+              if (evt.properties.parent) {
+                  if (evt.properties.parent.value) {
+                      parentId = evt.properties.parent.value.getAttribute("uid");
+                  }
               }
-            }
+              for (let i = 0; i < evt.properties.cells.length; i++) {
+                  const cell = evt.properties.cells[i];
+                  if (!cell.value.attributes) {
+                      return;
+                  }
+                  let uid = cell.value.getAttribute("uid");
+                  if (uid) {
+                      let element = me.props.projectService.findModelElementById(me.currentModel, uid);
+                      if (element) {
+                          element.parentId = parentId;
+                          element.x = cell.geometry.x;
+                          element.y = cell.geometry.y;
+                          element.width = cell.geometry.width;
+                          element.height = cell.geometry.height;
+                      }
+                  }
+              }
+              console.log("Actualizando JSON después de agregar celdas");
+              me.props.projectService.updateJsonData(me.currentModel);
           }
-          me.props.projectService.updateJsonData(me.currentModel);
-        }
       } catch (error) {
-        me.processException(error);
+          console.error("Error en CELLS_ADDED listener:", error);
+          me.processException(error);
       }
-    });
+  });
 
 
     graph.addListener(mx.mxEvent.CELLS_RESIZED, function (sender, evt) {

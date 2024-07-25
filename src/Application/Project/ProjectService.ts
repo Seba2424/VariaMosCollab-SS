@@ -37,6 +37,7 @@ import { ConfigurationInformation } from "../../Domain/ProductLineEngineering/En
 
 import io, { Socket } from 'socket.io-client';
 
+
 export default class ProjectService {
   private graph: any;
   private projectManager: ProjectManager = new ProjectManager();
@@ -107,13 +108,7 @@ export default class ProjectService {
         console.log("Updating JSON data", newData);
 
         if (newData && typeof newData === 'object') {
-            if (newData.model) {
-                this.jsonData = this.deepMerge(this.jsonData, newData.model);
-            } else if (newData.element) {
-                this.jsonData.elements = this.updateElement(this.jsonData.elements, newData.element);
-            } else if (newData.relationship) {
-                this.jsonData.relationships = this.updateElement(this.jsonData.relationships, newData.relationship);
-            }
+            this.jsonData = this.deepMerge(this.jsonData, newData);
             this.socket.emit('update', this.jsonData);
         } else {
             console.error("Invalid data received for JSON update:", newData);
@@ -123,45 +118,49 @@ export default class ProjectService {
     }
 }
 
-private updateElement(elements: any[], newElement: any) {
-    const index = elements.findIndex(element => element.id === newElement.id);
-    if (index !== -1) {
-        // Si el elemento existe, actualízalo
-        elements[index] = newElement;
-    } else {
-        // Si el elemento no existe, agrégalo
-        elements.push(newElement);
-    }
-    return elements;
-}
   private updateLocalData() {
-    // Lógica para actualizar el espacio de trabajo con los datos locales
     console.log('Local data updated', this.jsonData);
   }
 
-  private deepMerge(target: any, source: any) {
-    const isObject = (obj: any) => obj && typeof obj === 'object';
+  
+private deepMerge(target: any, source: any) {
+  const isObject = (obj: any) => obj && typeof obj === 'object';
 
-    if (!isObject(target) || !isObject(source)) {
-      return source;
-    }
+  const stack = [{ target, source }];
+
+  while (stack.length) {
+    const { target, source } = stack.pop();
 
     Object.keys(source).forEach(key => {
       const targetValue = target[key];
       const sourceValue = source[key];
 
       if (Array.isArray(targetValue) && Array.isArray(sourceValue)) {
-        target[key] = [...targetValue, ...sourceValue];  // Fusiona arrays en lugar de reemplazar
+        const mergedArray = targetValue.slice();
+
+        sourceValue.forEach(srcItem => {
+          const existingItemIndex = mergedArray.findIndex(tgtItem => tgtItem.id === srcItem.id);
+          if (existingItemIndex !== -1) {
+            stack.push({ target: mergedArray[existingItemIndex], source: srcItem });
+          } else {
+            mergedArray.push(srcItem);
+          }
+        });
+
+        target[key] = mergedArray;
       } else if (isObject(targetValue) && isObject(sourceValue)) {
-        target[key] = this.deepMerge(targetValue, sourceValue);
+        if (!target[key]) {
+          target[key] = {};
+        }
+        stack.push({ target: target[key], source: sourceValue });
       } else {
         target[key] = sourceValue;
       }
     });
-
-    return target;
   }
 
+  return target;
+}
   public get currentLanguage(): Language {
     return this._currentLanguage;
   }
